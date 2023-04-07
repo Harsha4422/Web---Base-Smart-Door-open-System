@@ -1,0 +1,49 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+
+#define RELAY_PIN 5 // define the relay pin
+#define BUZZER_PIN 4 // define the buzzer pin
+#define LOCK_TIME 5000 // define the lock activation time in ms
+#define BUZZER_FREQ 2000 // define the buzzer frequency in Hz
+#define BUZZER_DURATION 1000 // define the buzzer duration in ms
+
+const char* ssid = "your_SSID";
+const char* password = "your_PASSWORD";
+
+ESP8266WebServer server(80); // create web server object
+
+void setup() {
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH); // turn off the relay
+  digitalWrite(BUZZER_PIN, LOW); // turn off the buzzer
+  delay(1000);
+
+  Serial.begin(9600);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("WiFi connected.");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  
+  server.on("/unlock", HTTP_POST, [](){
+    digitalWrite(RELAY_PIN, LOW); // activate the relay to unlock the door
+    digitalWrite(BUZZER_PIN, HIGH); // generate buzzer sound for door unlocked
+    tone(BUZZER_PIN, BUZZER_FREQ, BUZZER_DURATION); // generate tone on buzzer pin
+    delay(LOCK_TIME); // wait for lock activation time
+    digitalWrite(RELAY_PIN, HIGH); // turn off the relay
+    digitalWrite(BUZZER_PIN, LOW); // generate buzzer sound for door locked
+    tone(BUZZER_PIN, BUZZER_FREQ, BUZZER_DURATION); // generate tone on buzzer pin
+    server.send(200, "text/plain", "Door unlocked and locked."); // send response to client
+  });
+  
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+}
